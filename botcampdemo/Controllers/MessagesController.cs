@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Description;
 using Microsoft.Bot.Connector;
+using Microsoft.ProjectOxford.Vision;
 using Newtonsoft.Json;
 
 namespace botcampdemo
@@ -26,10 +27,30 @@ namespace botcampdemo
             {
                 ConnectorClient connector = new ConnectorClient(new Uri(activity.ServiceUrl));
                 // calculate something for us to return
-                int length = (activity.Text ?? string.Empty).Length;
+                //int length = (activity.Text ?? string.Empty).Length;
 
-                // return our reply to the user
-                Activity reply = activity.CreateReply($"You sent {activity.Text} which was {length} characters");
+                var fbData = JsonConvert.DeserializeObject<Class1>(activity.ChannelData.ToString());
+                string url;
+                try
+                {
+                    url = fbData.message.attachments.First()?.payload.url;
+                    VisionServiceClient client = new VisionServiceClient("af0bc13ca86b401285d1759261666fc5");
+                    var result = await client.AnalyzeImageAsync(url, new VisualFeature[]
+                    {
+                        VisualFeature.Description
+                    });
+
+                    url = $"{result.Description.Captions.First()?.Text} , Confidence:{result.Description.Captions.First()?.Confidence}";
+
+                }
+                catch (Exception)
+                {
+                    url = $"echo:{activity.Text}";
+                }
+
+
+                
+                Activity reply = activity.CreateReply($"{url}");
                 await connector.Conversations.ReplyToActivityAsync(reply);
             }
             else
